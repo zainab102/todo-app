@@ -8,75 +8,84 @@ export function TodoCard({
   restoreTodo,
   deleteForever,
 }) {
-  const { input, complete, deleted } = todo;
+  const { id, text, complete, deleted } = todo;
 
   return (
-    <div
-      className={todo-card ${deleted ? "deleted" : complete ? "completed" : ""}}
-      role="listitem"
+    <article
+      aria-label={`Todo item ${todoIndex + 1}: ${text}`}
       style={{
+        border: "1px solid #ddd",
+        borderRadius: "6px",
+        padding: "1rem",
+        marginBottom: "0.75rem",
+        backgroundColor: deleted ? "#fef2f2" : "#f9fafb",
+        opacity: deleted ? 0.6 : 1,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 12,
-        border: "1px solid #ccc",
-        borderRadius: 8,
-        backgroundColor: deleted ? "#f8d7da" : "#e7f5ff",
-        marginBottom: 10,
       }}
     >
-      <p
-        className="todo-text"
-        onClick={() => !deleted && toggleComplete(todoIndex)}
-        style={{
-          flex: 1,
-          marginRight: 15,
-          textDecoration: complete ? "line-through" : "none",
-          cursor: deleted ? "default" : "pointer",
-          userSelect: "none",
-        }}
-        title={deleted ? "This task is deleted" : "Click to toggle complete"}
-      >
-        {input}
-      </p>
+      <div>
+        <input
+          type="checkbox"
+          checked={complete}
+          disabled={deleted}
+          onChange={() => toggleComplete(id)}
+          aria-label={`Mark todo ${text} as complete`}
+          style={{ marginRight: "0.75rem", transform: "scale(1.2)" }}
+        />
+        <span
+          style={{
+            textDecoration: complete ? "line-through" : "none",
+            color: complete ? "#6b7280" : "#111827",
+            fontSize: "1rem",
+          }}
+        >
+          {text}
+        </span>
+      </div>
 
-      <div className="todo-actions" style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: "0.5rem" }}>
         {!deleted ? (
-          <>
-            <button
-              className="btn"
-              onClick={() => toggleComplete(todoIndex)}
-              title={complete ? "Mark as Incomplete" : "Mark as Done"}
-            >
-              {complete ? "Undo" : "Done"}
-            </button>
-            <button
-              className="btn"
-              onClick={() => deleteTodo(todoIndex)}
-              title="Delete Task"
-            >
-              Delete
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => deleteTodo(id)}
+            aria-label={`Delete todo ${text}`}
+            style={buttonStyle}
+          >
+            🗑️
+          </button>
         ) : (
           <>
             <button
-              className="btn"
-              onClick={() => restoreTodo(todoIndex)}
-              title="Restore Task"
+              type="button"
+              onClick={() => restoreTodo(id)}
+              aria-label={`Restore todo ${text}`}
+              style={buttonStyle}
             >
-              Restore
+              ♻️
             </button>
             <button
-              className="btn danger"
-              onClick={() => deleteForever(todoIndex)}
-              title="Permanently Delete"
+              type="button"
+              onClick={() => deleteForever(id)}
+              aria-label={`Permanently delete todo ${text}`}
+              style={{ ...buttonStyle, color: "red" }}
             >
-              Delete Forever
+              ❌
             </button>
           </>
         )}
       </div>
-    </div>
+    </article>
   );
 }
+
+const buttonStyle = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  fontSize: "1.2rem",
+  padding: "0.25rem 0.5rem",
+  borderRadius: "4px",
+  transition: "background-color 0.2s ease",
+};
