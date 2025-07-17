@@ -1,24 +1,28 @@
+// src/TodoInput.jsx
 import React, { useState } from "react";
 
-export function TodoInput({ addTodo }) {
-  const [inputValue, setInputValue] = useState("");
+const TodoInput = ({ addTodo }) => {
+  const [text, setText] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (inputValue.trim() === "") return; // Prevent empty todos
-    addTodo(inputValue.trim());
-    setInputValue(""); // Clear input after adding
+    if (text.trim()) {
+      addTodo(text);
+      setText("");
+    }
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <input
         type="text"
-        placeholder="Enter new todo"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
+        placeholder="Add a task..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
       />
       <button type="submit">Add</button>
     </form>
   );
-}
+};
+
+export default TodoInput;

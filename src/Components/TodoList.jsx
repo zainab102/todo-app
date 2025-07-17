@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { TodoCard } from "./TodoCard";
 
 export const TodoList = React.memo(function TodoList({
@@ -9,8 +9,8 @@ export const TodoList = React.memo(function TodoList({
   restoreTodo,
   deleteForever,
 }) {
-  // Efficient filtering using useMemo
-  const visibleTodos = React.useMemo(() => {
+  // Filter todos based on selected tab
+  const visibleTodos = useMemo(() => {
     switch (selectedTab) {
       case "All":
         return todos.filter((todo) => !todo.deleted);
@@ -43,11 +43,11 @@ export const TodoList = React.memo(function TodoList({
   return (
     <section aria-label={`${selectedTab} tasks list`}>
       {visibleTodos.map((todo) => {
-        const index = todos.findIndex((t) => t.id === todo.id);
+        const todoIndex = todos.findIndex((t) => t.id === todo.id);
         return (
           <TodoCard
             key={todo.id}
-            todoIndex={index}
+            todoIndex={todoIndex}
             todo={todo}
             toggleComplete={toggleComplete}
             deleteTodo={deleteTodo}
