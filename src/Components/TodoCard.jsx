@@ -12,7 +12,7 @@ export function TodoCard({
 
   return (
     <div
-      className={`todo-card ${deleted ? "deleted" : complete ? "completed" : ""}`}
+      className={todo-card ${deleted ? "deleted" : complete ? "completed" : ""}}
       role="listitem"
       style={{
         display: "flex",
