@@ -1,183 +1,198 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useReducer, useEffect, useCallback, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-
-function TodoInput({ addTodo }) {
-  const [input, setInput] = useState("");
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    addTodo(input);
-    setInput("");
-  };
-  return (
-    <form onSubmit={handleSubmit} className="input-container">
-      <input
-        type="text"
-        placeholder="Add a new task"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        aria-label="New todo input"
-      />
-      <button type="submit">Add</button>
-    </form>
-  );
-}
-
-function TodoList({ todos, selectedTab, toggleComplete, deleteTodo, restoreTodo, deleteForever }) {
-  const filteredTodos = todos.filter((todo) => {
-    if (selectedTab === "All") return !todo.deleted;
-    if (selectedTab === "Open") return !todo.complete && !todo.deleted;
-    if (selectedTab === "Completed") return todo.complete && !todo.deleted;
-    if (selectedTab === "Deleted") return todo.deleted;
-    return true;
-  });
-
-  if (filteredTodos.length === 0) return <p>No tasks here.</p>;
-
-  return (
-    <ul className="todo-list">
-      {filteredTodos.map((todo) => (
-        <li
-          key={todo.id}
-          className={`todo-item ${todo.complete ? "todo-complete" : ""}`}
-        >
-          <input
-            type="checkbox"
-            checked={todo.complete}
-            disabled={todo.deleted}
-            onChange={() => toggleComplete(todo.id)}
-            aria-label={`Mark task "${todo.input}" as complete`}
-          />
-          <p>{todo.input}</p>
-
-          <div className="todo-buttons">
-            {!todo.deleted ? (
-              <button onClick={() => deleteTodo(todo.id)} aria-label="Delete task">
-                Delete
-              </button>
-            ) : (
-              <>
-                <button onClick={() => restoreTodo(todo.id)} aria-label="Restore task">
-                  Restore
-                </button>
-                <button onClick={() => deleteForever(todo.id)} aria-label="Delete task forever">
-                  Delete Forever
-                </button>
-              </>
-            )}
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import TodoInput from "./TodoInput";  // We'll update these next
+import TodoList from "./TodoList";
 
 const TABS = ["All", "Open", "Completed", "Deleted"];
 
-export default function App() {
-  const [todos, setTodos] = useState(() => {
-    const stored = localStorage.getItem("todos");
-    return stored ? JSON.parse(stored) : [];
-  });
+const initialState = {
+  todos: [],
+  history: [],
+  historyIndex: -1,
+};
 
-  const [selectedTab, setSelectedTab] = useState("All");
-  const [history, setHistory] = useState([todos]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-
-  useEffect(() => {
-    localStorage.setItem("todos", JSON.stringify(todos));
-
-    if (JSON.stringify(history[historyIndex]) !== JSON.stringify(todos)) {
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(todos);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
+function reducer(state, action) {
+  switch (action.type) {
+    case "INIT_TODOS": {
+      const todos = action.payload;
+      return {
+        todos,
+        history: [todos],
+        historyIndex: 0,
+      };
     }
-  }, [todos, history, historyIndex]);
+    case "ADD_TODO": {
+      const newTodo = {
+        id: uuidv4(),
+        input: action.payload.trim(),
+        complete: false,
+        deleted: false,
+      };
+      const newTodos = [...state.todos, newTodo];
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      newHistory.push(newTodos);
+      return {
+        todos: newTodos,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      };
+    }
+    case "TOGGLE_COMPLETE": {
+      const newTodos = state.todos.map(todo =>
+        todo.id === action.payload ? { ...todo, complete: !todo.complete } : todo
+      );
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      newHistory.push(newTodos);
+      return {
+        todos: newTodos,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      };
+    }
+    case "DELETE_TODO": {
+      const newTodos = state.todos.map(todo =>
+        todo.id === action.payload ? { ...todo, deleted: true } : todo
+      );
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      newHistory.push(newTodos);
+      return {
+        todos: newTodos,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      };
+    }
+    case "RESTORE_TODO": {
+      const newTodos = state.todos.map(todo =>
+        todo.id === action.payload ? { ...todo, deleted: false } : todo
+      );
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      newHistory.push(newTodos);
+      return {
+        todos: newTodos,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      };
+    }
+    case "DELETE_FOREVER": {
+      const newTodos = state.todos.filter(todo => todo.id !== action.payload);
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      newHistory.push(newTodos);
+      return {
+        todos: newTodos,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      };
+    }
+    case "CLEAR_ALL": {
+      const newTodos = state.todos.map(todo => {
+        if (
+          action.payload === "Deleted" ||
+          (action.payload !== "Deleted" && !todo.deleted)
+        ) {
+          return { ...todo, deleted: true };
+        }
+        return todo;
+      });
+      const newHistory = state.history.slice(0, state.historyIndex + 1);
+      newHistory.push(newTodos);
+      return {
+        todos: newTodos,
+        history: newHistory,
+        historyIndex: newHistory.length - 1,
+      };
+    }
+    case "UNDO": {
+      if (state.historyIndex <= 0) return state;
+      const newIndex = state.historyIndex - 1;
+      return {
+        ...state,
+        todos: state.history[newIndex],
+        historyIndex: newIndex,
+      };
+    }
+    case "REDO": {
+      if (state.historyIndex >= state.history.length - 1) return state;
+      const newIndex = state.historyIndex + 1;
+      return {
+        ...state,
+        todos: state.history[newIndex],
+        historyIndex: newIndex,
+      };
+    }
+    default:
+      return state;
+  }
+}
+
+export default function App() {
+  const [selectedTab, setSelectedTab] = useState("All");
+  const [state, dispatch] = useReducer(reducer, initialState);
+
+  // Initialize todos from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("todos");
+    if (stored) {
+      dispatch({ type: "INIT_TODOS", payload: JSON.parse(stored) });
+    }
+  }, []);
+
+  // Save todos to localStorage on change
+  useEffect(() => {
+    localStorage.setItem("todos", JSON.stringify(state.todos));
+  }, [state.todos]);
 
   const addTodo = useCallback(
     (input) => {
       if (!input.trim()) return;
-      setTodos((prev) => [
-        ...prev,
-        { id: uuidv4(), input: input.trim(), complete: false, deleted: false },
-      ]);
+      dispatch({ type: "ADD_TODO", payload: input });
     },
     []
   );
 
   const toggleComplete = useCallback(
-    (id) => {
-      setTodos((prev) =>
-        prev.map((todo) =>
-          todo.id === id ? { ...todo, complete: !todo.complete } : todo
-        )
-      );
-    },
+    (id) => dispatch({ type: "TOGGLE_COMPLETE", payload: id }),
     []
   );
 
   const deleteTodo = useCallback(
-    (id) => {
-      setTodos((prev) =>
-        prev.map((todo) =>
-          todo.id === id ? { ...todo, deleted: true } : todo
-        )
-      );
-    },
+    (id) => dispatch({ type: "DELETE_TODO", payload: id }),
     []
   );
 
   const restoreTodo = useCallback(
-    (id) => {
-      setTodos((prev) =>
-        prev.map((todo) =>
-          todo.id === id ? { ...todo, deleted: false } : todo
-        )
-      );
-    },
+    (id) => dispatch({ type: "RESTORE_TODO", payload: id }),
     []
   );
 
   const deleteForever = useCallback(
     (id) => {
-      setTodos((prev) => prev.filter((todo) => todo.id !== id));
+      if (
+        window.confirm("Are you sure you want to permanently delete this task?")
+      ) {
+        dispatch({ type: "DELETE_FOREVER", payload: id });
+      }
     },
     []
   );
 
   const clearAll = useCallback(() => {
-    setTodos((prev) =>
-      prev.map((todo) => {
-        if (
-          selectedTab === "Deleted" ||
-          (selectedTab !== "Deleted" && !todo.deleted)
-        ) {
-          return { ...todo, deleted: true };
-        }
-        return todo;
-      })
-    );
+    if (
+      window.confirm(
+        selectedTab === "Deleted"
+          ? "Delete all tasks permanently?"
+          : "Delete all tasks in this tab?"
+      )
+    ) {
+      dispatch({ type: "CLEAR_ALL", payload: selectedTab });
+    }
   }, [selectedTab]);
 
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setTodos(history[newIndex]);
-      setHistoryIndex(newIndex);
-    }
-  }, [history, historyIndex]);
-
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setTodos(history[newIndex]);
-      setHistoryIndex(newIndex);
-    }
-  }, [history, historyIndex]);
+  const undo = useCallback(() => dispatch({ type: "UNDO" }), []);
+  const redo = useCallback(() => dispatch({ type: "REDO" }), []);
 
   return (
     <main>
-      <h1>React To-Do List</h1>
+      <h1>Plan & Conquer My To-Do List</h1>
 
       <nav className="tab-container" aria-label="Filter tasks by status">
         {TABS.map((tab) => (
@@ -195,7 +210,7 @@ export default function App() {
       <TodoInput addTodo={addTodo} />
 
       <TodoList
-        todos={todos}
+        todos={state.todos}
         selectedTab={selectedTab}
         toggleComplete={toggleComplete}
         deleteTodo={deleteTodo}
@@ -204,13 +219,13 @@ export default function App() {
       />
 
       <div className="main-buttons">
-        <button onClick={clearAll} disabled={todos.length === 0}>
+        <button onClick={clearAll} disabled={state.todos.length === 0}>
           Clear All Tasks
         </button>
-        <button onClick={undo} disabled={historyIndex === 0}>
+        <button onClick={undo} disabled={state.historyIndex <= 0}>
           Undo
         </button>
-        <button onClick={redo} disabled={historyIndex === history.length - 1}>
+        <button onClick={redo} disabled={state.historyIndex >= state.history.length - 1}>
           Redo
         </button>
       </div>
